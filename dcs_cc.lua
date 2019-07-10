@@ -11,10 +11,11 @@ dcs_cc.coalitions = {
     coalition.side.RED,
 }
 
-dcs_cc.objects = {
-    ["Tank"] = {
-        ["price"] = 1000
-    }
+dcs_cc.objects = config.objects 
+
+dcs_cc.warehouses = {
+    ["red"] = WAREHOUSE:New(STATIC:FindByName(config.warehouses.red)),
+    ["blue"] = WAREHOUSE:New(STATIC:FindByName(config.warehouses.blue)),
 }
 
 function dcs_cc.getCoalitionName(Coalition)
@@ -30,6 +31,14 @@ function dcs_cc.coalitionBalance(Coalition)
     msg:ToCoalition(Coalition)
 end
 
+function dcs_cc.addObjectToCoalitionWarehouse(Details, Side)
+    local _warehouse = dcs_cc.warehouses[Side]
+    local _group = GROUP:FindByName(Details.group[Side])
+    _warehouse:AddAsset(_group, 1)
+    local msg = MESSAGE:New("Bringing out units from warehouse, they will be available shortly...", 10)
+    msg:ToCoalition(Coalition)
+end
+
 function dcs_cc.buyItem(Item, Coalition)
     local _side = dcs_cc.getCoalitionName(Coalition)
     env.info("Shopping for " .. _side)
@@ -40,8 +49,7 @@ function dcs_cc.buyItem(Item, Coalition)
 
     if _newBalance >= 0 then
         dcs_cc.banks[_side] = _newBalance
-        -- TODO spawn the bought item
-        --DEBUG
+        dcs_cc.addObjectToCoalitionWarehouse(_details, _side)
         local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance, 10)
         msg:ToCoalition(Coalition)
         return _newBalance
@@ -50,14 +58,40 @@ function dcs_cc.buyItem(Item, Coalition)
 end
 
 
+function dcs_cc.requestGroup(Group, Coalition)
+    local _side = dcs_cc.getCoalitionName(Coalition)
+    local _warehouse = dcs_cc.warehouses[_side]
+    local _groupName = dcs_cc.objects[Group].group[_side]
+
+    _warehouse:AddRequest(_warehouse, WAREHOUSE.Descriptor.GROUPNAME, _groupName)
+end
+
 -- setup menu
 for _, _coalition in pairs(dcs_cc.coalitions) do
     local _mainMenu = MENU_COALITION:New(_coalition, "DCS Command & Conquer")
+    local _side = dcs_cc.getCoalitionName(_coalition)
 
     MENU_COALITION_COMMAND:New(_coalition, "Balance", _mainMenu, dcs_cc.coalitionBalance, _coalition)
 
     local _buyMenu = MENU_COALITION:New(_coalition, "Buy", _mainMenu)
 
-    MENU_COALITION_COMMAND:New(_coalition, "Tank", _buyMenu, dcs_cc.buyItem, "Tank", _coalition)
+    for item, details in pairs(dcs_cc.objects) do
+        if details.group[_side] ~= nil then
+            env.info("Adding item: " .. item .. " to side: " .. _side, GLOBAL_DEBUG_MODE)
+            local _title = item .. ": " .. details.price
+            MENU_COALITION_COMMAND:New(_coalition, _title, _buyMenu, dcs_cc.buyItem, item, _coalition)
+        end
+    end
+    
+    local _spawnMenu = MENU_COALITION:New(_coalition, "Spawn", _mainMenu)
+
+    for _item, _ in pairs(dcs_cc.objects) do
+        MENU_COALITION_COMMAND:New(_coalition, _item, _spawnMenu, dcs_cc.requestGroup, _item, _coalition)
+    end
+end
+
+-- Start warehouses
+for _, warehouse in pairs(dcs_cc.warehouses) do
+    warehouse:Start()
 end
 
