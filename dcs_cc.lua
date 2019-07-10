@@ -35,8 +35,6 @@ function dcs_cc.addObjectToCoalitionWarehouse(Details, Side)
     local _warehouse = dcs_cc.warehouses[Side]
     local _group = GROUP:FindByName(Details.group[Side])
     _warehouse:AddAsset(_group, 1)
-    local msg = MESSAGE:New("Bringing out units from warehouse, they will be available shortly...", 10)
-    msg:ToCoalition(Coalition)
 end
 
 function dcs_cc.buyItem(Item, Coalition)
@@ -50,7 +48,7 @@ function dcs_cc.buyItem(Item, Coalition)
     if _newBalance >= 0 then
         dcs_cc.banks[_side] = _newBalance
         dcs_cc.addObjectToCoalitionWarehouse(_details, _side)
-        local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance, 10)
+        local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance .. ", pleawse stand by as they are delivered", 10)
         msg:ToCoalition(Coalition)
         return _newBalance
     end
@@ -63,7 +61,16 @@ function dcs_cc.requestGroup(Group, Coalition)
     local _warehouse = dcs_cc.warehouses[_side]
     local _groupName = dcs_cc.objects[Group].group[_side]
 
-    _warehouse:AddRequest(_warehouse, WAREHOUSE.Descriptor.GROUPNAME, _groupName)
+    local _numAvailable = _warehouse:GetNumberOfAssets(WAREHOUSE.Descriptor.GROUPNAME, _groupName)
+
+    if _numAvailable > 0 then
+        _warehouse:AddRequest(_warehouse, WAREHOUSE.Descriptor.GROUPNAME, _groupName)
+        local msg = MESSAGE:New("Bringing out units from warehouse, they will be available shortly...", 10)
+        msg:ToCoalition(Coalition)
+    else
+        MESSAGE:New("No units available...", 10):ToCoalition(Coalition)
+    end
+
 end
 
 -- setup menu
