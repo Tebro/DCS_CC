@@ -44,7 +44,7 @@ config.objects = {
     ["Tank Group"] = {
         ["price"] = 1000,
         ["transportable"] = true,
-        ["crates"] = 1,
+        ["crates"] = 2,
         -- A group name referencing a late activated group placed in the mission
         ["group"] = {
             ["blue"] = "BlueTanksTemplate",

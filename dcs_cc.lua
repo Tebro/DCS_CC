@@ -99,6 +99,7 @@ function dcs_cc.unloadCargo(CargoGroup, Group)
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
         CargoGroup:UnBoard()
         _menuCommand:Remove()
+        dcs_cc.transportGroups[Group.GroupName] = nil
         MESSAGE:New("Cargo unloading", 10):ToGroup(Group)
     else
         MESSAGE:New("Land first dummy...", 10):ToGroup(Group)
@@ -117,8 +118,8 @@ function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
     local _unit = Group:GetPlayerUnits()[1]
     local _pos = _unit:GetCoordinate()
     local _altitude = _unit:GetAltitude() - _pos:GetLandHeight()
-    if _altitude > 5 and _altitude < 20 then
-        local _cratePos = _unit:GetPointVec2():AddX(10):AddY(10):SetAlt()
+    if _altitude < 20 then
+        local _cratePos = _unit:GetPointVec2():AddX(20):SetAlt()
         local _staticName = CargoType .. dcs_cc.getCargoIndex()
         local _crate = StaticSpawn:SpawnFromPointVec2(_cratePos, 0, _staticName)
 
@@ -127,6 +128,7 @@ function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
 
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
         _menuCommand:Remove()
+        dcs_cc.transportGroups[Group.GroupName] = nil
         MESSAGE:New("Crate dropped", 10):ToGroup(Group)
     else
         MESSAGE:New("Must be within correct altitude", 10):ToGroup(Group)
@@ -141,12 +143,42 @@ function dcs_cc.spawnFromCrate(Side, Crate)
     _static:Destroy(false)
 
 
-    for _i, _crate in dcs_cc.crates[Side] do
+    for _i, _crate in pairs(dcs_cc.crates[Side]) do
         if _crate.staticName == Crate.staticName then
-            table.remove(dcs_cc.crates[Side], i)
+            table.remove(dcs_cc.crates[Side], _i)
             break
         end
     end
+end
+
+-- Brutal copy paste from: https://stackoverflow.com/questions/24821045/does-lua-have-something-like-pythons-slice
+function table.slice(tbl, first, last, step)
+  local sliced = {}
+
+  for i = first or 1, last or #tbl, step or 1 do
+    sliced[#sliced+1] = tbl[i]
+  end
+
+  return sliced
+end
+
+function dcs_cc.spawnFromMultipleCrates(Side, Crates)
+    local _requiredCrates = Crates[1].details.crates
+    local _selectedCrates = table.slice(Crates, 2, _requiredCrates) -- select one less for just deleting
+
+    dcs_cc.spawnFromCrate(Side, Crates[1])
+
+    for _, _c in pairs(_selectedCrates) do
+        local _static = STATIC:FindByName(_c.staticName, true)
+        _static:Destroy(false)
+        for _i, _crate in pairs(dcs_cc.crates[Side]) do
+            if _crate.staticName == _c.staticName then
+                table.remove(dcs_cc.crates[Side], _i)
+                break
+            end
+        end
+    end
+
 end
 
 function dcs_cc.unpackCrate(Group, Coalition)
@@ -161,13 +193,39 @@ function dcs_cc.unpackCrate(Group, Coalition)
         end
     end
 
+    local _countedByTemplate = {}
+
     for _, _crate in pairs(_cratesInZone) do
-        if _crate.details.crates == 1 then
+        if _crate.details.crates == 1 then -- shortcut if a single crate package is found
             dcs_cc.spawnFromCrate(_side, _crate)
             MESSAGE:New("Crate unpacked", 10):ToGroup(Group)
-            break
+            return
+        end
+        local _template = _crate.details.group[_side]
+        if _countedByTemplate[_template] then
+            table.insert(_countedByTemplate[_template], _crate)
+        else
+            _countedByTemplate[_template] = {_crate}
         end
     end
+
+    for _template, _crates in pairs(_countedByTemplate) do
+        local _requiredCrates = _crates[1].details.crates
+        if table.getn(_crates) >= _requiredCrates then
+            dcs_cc.spawnFromMultipleCrates(_side, _crates)
+            MESSAGE:New("Crates unpacked", 10):ToGroup(Group)
+            return
+        end
+    end
+
+    MESSAGE:New("No viable crates nearby", 10):ToGroup(Group)
+end
+
+function dcs_cc.getCargoPrice(Details)
+    if Details.crates and Details.crates > 0 then
+        return Details.price/Details.crates
+    end
+    return Details.price
 end
 
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
@@ -177,12 +235,9 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
         if dcs_cc.transportGroups[Group.GroupName] == nil then
             if _unit:IsInZone(dcs_cc.spawnZone[_side]) and _unit:InAir() == false then
                 local _details = dcs_cc.objects[Item]
-                local _price = _details.price
-                if _details.crates and _details.crates > 0 then
-                    _price = _price / _details.crates
-                end
+                local _price = dcs_cc.getCargoPrice(_details)
 
-                local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _details.price)
+                local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _price)
                 local _cargoGroup = nil
 
 
@@ -238,8 +293,12 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
             function()
                 local _group = GROUP:FindByName(_groupName)
                 if _group and _group:IsAlive() then
+                    local _unit = _group:GetPlayerUnits()[1]
+                    function _unit:OnEventDead(EventData)
+                        dcs_cc.transportGroups[_groupName] = nil
+                        dcs_cc.unitZones[_groupName] = nil
+                    end
                     if dcs_cc.unitZones[_groupName] == nil then
-                        local _unit = _group:GetPlayerUnits()[1]
                         dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
                     end
 
@@ -249,7 +308,12 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
 
                     for item, details in pairs(dcs_cc.objects) do
                         if details.group[_side] ~= nil and details.transportable then
-                            local _title = item .. ": " .. details.price
+                            local _title = ""
+                            if details.crates and details.crates > 0 then
+                                _title = item .. ": " .. dcs_cc.getCargoPrice(details) .. " (crates required: " .. details.crates .. ")"
+                            else
+                                _title = item .. ": " .. dcs_cc.getCargoPrice(details)
+                            end
                             MENU_GROUP_COMMAND:New(_group, _title, _buyAsCargoMenu, dcs_cc.buyAsCargo, item, _coalition, _group)
                         end
                     end
