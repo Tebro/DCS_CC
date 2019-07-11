@@ -140,6 +140,7 @@ function dcs_cc.spawnFromCrate(Side, Crate)
     _spawn:SpawnFromStatic(_static)
     _static:Destroy(false)
 
+
     for _i, _crate in dcs_cc.crates[Side] do
         if _crate.staticName == Crate.staticName then
             table.remove(dcs_cc.crates[Side], i)
@@ -163,6 +164,7 @@ function dcs_cc.unpackCrate(Group, Coalition)
     for _, _crate in pairs(_cratesInZone) do
         if _crate.details.crates == 1 then
             dcs_cc.spawnFromCrate(_side, _crate)
+            MESSAGE:New("Crate unpacked", 10):ToGroup(Group)
             break
         end
     end
