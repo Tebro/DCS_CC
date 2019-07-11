@@ -11,5 +11,5 @@ loadScript()
 
 -- Setup radio option to reload it
 
-devMenu = MENU_MISSION:New("DCS_CC DEVELOPMENT")
-MENU_MISSION_COMMAND:New("Reload scripts", devMenu, loadScript, nil)
+--devMenu = MENU_MISSION:New("DCS_CC DEVELOPMENT")
+--MENU_MISSION_COMMAND:New("Reload scripts", devMenu, loadScript, nil)
