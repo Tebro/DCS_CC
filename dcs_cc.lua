@@ -18,11 +18,20 @@ dcs_cc.warehouses = {
     ["blue"] = WAREHOUSE:New(STATIC:FindByName(config.warehouses.blue)),
 }
 
+dcs_cc.captureZones = {}
+
 function dcs_cc.getCoalitionName(Coalition)
     if Coalition == coalition.side.BLUE then
         return "blue"
     end
     return "red"
+end
+
+function dcs_cc.getMooseCoalition( Side )
+    if Side == "red" then
+        return coalition.side.RED
+    end
+    return coalition.side.BLUE
 end
 
 function dcs_cc.coalitionBalance(Coalition)
@@ -104,3 +113,38 @@ for _, warehouse in pairs(dcs_cc.warehouses) do
     warehouse:Start()
 end
 
+-- Start Capture Zones
+
+for _zone, _side in pairs(config.captureZones) do
+    local _triggerZone = ZONE:New(_zone)
+    local _coalition = dcs_cc.getMooseCoalition(_side)
+
+    local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)
+    -- Start the zone monitoring process in 30 seconds and check every 30 seconds.
+    _captureZone:Start(30, 30)
+    table.insert(dcs_cc.captureZones, _captureZone)
+end
+
+function dcs_cc.tickResources()
+    local _redTickAmount = config.baseResourceGeneration
+    local _blueTickAmount = config.baseResourceGeneration
+
+    for _, _captureZone in pairs(dcs_cc.captureZones) do
+        if _captureZone:IsGuarded() then
+            local _tickAmount = config.zoneResourceGeneration
+
+            if _captureZone:GetCoalition() == coalition.side.RED then
+                _redTickAmount += _tickAmount
+            else
+                _blueTickAmount += _tickAmount
+            end
+        end
+    end
+
+    dcs_cc.banks.red += _redTickAmount
+    dcs_cc.banks.blue += _blueTickAmount
+end
+
+-- Resource ticking
+SCHEDULER:New(nil, dcs_cc.tickResources, nil, config.resourceTickSeconds, config.resourceTickSeconds)
+env.info("LOADING DCS_CC FINISHED", GLOBAL_DEBUG_MODE)
