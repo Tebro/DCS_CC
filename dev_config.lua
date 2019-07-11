@@ -19,10 +19,13 @@ config.spawnZone = {
 
 config.transportGroups = {
     ["red"] = {
-        "transport2"
+        "transport2",
+        "transport5"
     },
     ["blue"] = {
-        "transport1"
+        "transport1",
+        "transport3",
+        "transport4"
     }
 }
 
@@ -30,7 +33,10 @@ config.transportGroups = {
 -- Owning is does not generate resource, but is a must have anyway
 config.captureZones = {
     ["Zone1"] = "blue",
-    ["Zone2"] = "red"
+    ["Zone2"] = "red",
+    ["Zone3"] = "red",
+    ["Zone4"] = "blue",
+    ["Zone5"] = "blue",
 }
 
 -- Name of static objects representing cargo crates
@@ -56,14 +62,16 @@ config.objects = {
         ["transportable"] = true,
         ["crates"] = 1,
         ["group"] = {
-            ["blue"] = "BlueTrucksTemplate"
+            ["blue"] = "BlueTrucksTemplate",
+            ["red"] = "RedTrucksTemplate"
         }
     },
     ["Infantry Squad"] = {
         ["price"] = 100,
         ["transportable"] = true,
         ["group"] = {
-            ["blue"] = "BlueSquadTemplate"
+            ["blue"] = "BlueSquadTemplate",
+            ["red"] = "RedSquadTemplate"
         }
     }
 }
