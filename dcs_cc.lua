@@ -51,8 +51,10 @@ function dcs_cc.buyItem(Item, Coalition)
         local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance .. ", pleawse stand by as they are delivered", 10)
         msg:ToCoalition(Coalition)
         return _newBalance
+    else
+        local msg = MESSAGE:New("You do not have enough funds to buy " .. Item .. ". Balance is " .. dcs_cc.banks[_side] .. " but the cost for that item is ".. _price, 10)
+        return dcs_cc.banks[_side]   
     end
-    -- TODO: What to return? How to handle insuficcient funds?
 end
 
 
