@@ -34,6 +34,15 @@ dcs_cc.crates = {
     ["blue"] = {}
 }
 
+dcs_cc.spawners = {}
+
+function dcs_cc.getSpawner(Template)
+    if dcs_cc.spawners[Template] == nil then
+        dcs_cc.spawners[Template] = SPAWN:New(Template)
+    end
+    return dcs_cc.spawners[Template]
+end
+
 function dcs_cc.getCoalitionName(Coalition)
     if Coalition == coalition.side.BLUE then
         return "blue"
@@ -55,7 +64,7 @@ function dcs_cc.coalitionBalance(Coalition)
 end
 
 function dcs_cc.spawnGroup(Details, Side)
-    local _spawn = SPAWN:New(Details.group[Side])
+    local _spawn = dcs_cc.getSpawner(Details.group[Side])
     local _spawnedGroup = _spawn:SpawnInZone(dcs_cc.spawnZone[Side], true)
     return _spawnedGroup
 end
@@ -137,7 +146,7 @@ end
 
 function dcs_cc.spawnFromCrate(Side, Crate)
     local _static = STATIC:FindByName(Crate.staticName, true)
-    local _spawn = SPAWN:New(Crate.details.group[Side])
+    local _spawn = dcs_cc.getSpawner(Crate.details.group[Side])
     local _pos = _static:GetPointVec2()
     _spawn:SpawnFromStatic(_static)
     _static:Destroy(false)
