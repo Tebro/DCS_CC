@@ -20,12 +20,15 @@ config.spawnZone = {
 config.transportGroups = {
     ["red"] = {
         "transport2",
-        "transport5"
+        "transport5",
+        "transport6",
+        "transport7"
     },
     ["blue"] = {
         "transport1",
         "transport3",
-        "transport4"
+        "transport4",
+        "transport8"
     }
 }
 
@@ -73,5 +76,29 @@ config.objects = {
             ["blue"] = "BlueSquadTemplate",
             ["red"] = "RedSquadTemplate"
         }
-    }
+    },
+    ["Roland"] = {
+        ["price"] = 2000,
+        ["transportable"] = true,
+        ["crates"] = 2,
+        ["group"] = {
+            ["blue"] = "BlueSquadTemplate",
+        }
+    },
+    ["SA6"] = {
+        ["price"] = 1500,
+        ["transportable"] = true,
+        ["crates"] = 2,
+        ["group"] = {
+            ["red"] = "RedSA6",
+        }
+    },
+    ["Stinger team"] = {
+        ["price"] = 300,
+        ["transportable"] = true,
+        ["group"] = {
+            ["blue"] = "BlueStinger",
+            ["red"] = "RedStinger"
+        }
+    },
 }
