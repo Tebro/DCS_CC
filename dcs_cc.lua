@@ -100,6 +100,25 @@ function dcs_cc.unloadCargo(CargoGroup, Group)
     end
 end
 
+function dcs_cc.unloadCrate(StaticSpawn, Group)
+    local _unit = Group:GetPlayerUnits()[1]
+    local _pos = _unit:GetCoordinate()
+    local _altitude = _unit:GetAltitude() - _pos:GetLandHeight()
+    if _altitude > 10 and _altitude < 40 then
+        env.info("Altityde: " .. _altitude, true)
+
+        --env.info("X:" .. _pos.x .. ", Y:" .. _pos.y .. ", Z:" .. _pos.z .. ", alt:" .. _pos:GetLandHeight(), true)
+        local _cratePos = _unit:GetPointVec2():AddX(1):AddY(1):SetAlt()
+        StaticSpawn:SpawnFromPointVec2(_cratePos, 0)
+
+        local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
+        _menuCommand:Remove()
+        MESSAGE:New("Crate dropped", 10):ToGroup(Group)
+    else
+        MESSAGE:New("Must be within correct altitude", 10):ToGroup(Group)
+    end
+end
+
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
     local _side = dcs_cc.getCoalitionName(Coalition)
     local _unit = Group:GetPlayerUnits()[1]
@@ -114,16 +133,20 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
 
                 if _enoughResources then
 
-                    --if _details.crates and _details.crates > 0 then
-                    --    -- TODO crates
-                    --else
+                    if _details.crates and _details.crates > 0 then
+                        local _country = Group:GetCountry()
+                        local _staticSpawn = SPAWNSTATIC:NewFromStatic(config.crateTemplate[_side], _country, Coalition)
+                        MESSAGE:New("Crate has been loaded!", 10):ToGroup(Group)
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Crate", nil, dcs_cc.unloadCrate, _staticSpawn, Group)
+                        dcs_cc.transportGroups[Group.GroupName] = _menuCommand
+                    else
                         local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
                         _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
                         _cargoGroup:Board(_unit, 25)
                         MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
                         local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
                         dcs_cc.transportGroups[Group.GroupName] = _menuCommand
-                    --end
+                    end
                 else
                     MESSAGE:New("Not enough resources", 10):ToGroup(Group)
                 end
