@@ -28,6 +28,11 @@ dcs_cc.spawnZone = {
 
 dcs_cc.captureZones = {}
 dcs_cc.transportGroups = {}
+dcs_cc.unitZones = {}
+dcs_cc.crates = {
+    ["red"] = {},
+    ["blue"] = {}
+}
 
 function dcs_cc.getCoalitionName(Coalition)
     if Coalition == coalition.side.BLUE then
@@ -100,22 +105,66 @@ function dcs_cc.unloadCargo(CargoGroup, Group)
     end
 end
 
-function dcs_cc.unloadCrate(StaticSpawn, Group)
+function dcs_cc.addCrateToCoalition(Side, CargoDetails, Crate, StaticName)
+    table.insert(dcs_cc.crates[Side],  {
+        ["crate"] = Crate, 
+        ["details"] = CargoDetails,
+        ["staticName"] = StaticName
+    })
+end
+
+function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
     local _unit = Group:GetPlayerUnits()[1]
     local _pos = _unit:GetCoordinate()
     local _altitude = _unit:GetAltitude() - _pos:GetLandHeight()
-    if _altitude > 10 and _altitude < 40 then
-        env.info("Altityde: " .. _altitude, true)
+    if _altitude > 5 and _altitude < 20 then
+        local _cratePos = _unit:GetPointVec2():AddX(10):AddY(10):SetAlt()
+        local _staticName = CargoType .. dcs_cc.getCargoIndex()
+        local _crate = StaticSpawn:SpawnFromPointVec2(_cratePos, 0, _staticName)
 
-        --env.info("X:" .. _pos.x .. ", Y:" .. _pos.y .. ", Z:" .. _pos.z .. ", alt:" .. _pos:GetLandHeight(), true)
-        local _cratePos = _unit:GetPointVec2():AddX(1):AddY(1):SetAlt()
-        StaticSpawn:SpawnFromPointVec2(_cratePos, 0)
+        local _details = dcs_cc.objects[CargoType]
+        dcs_cc.addCrateToCoalition(Side, _details, _crate, _staticName)
 
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
         _menuCommand:Remove()
         MESSAGE:New("Crate dropped", 10):ToGroup(Group)
     else
         MESSAGE:New("Must be within correct altitude", 10):ToGroup(Group)
+    end
+end
+
+function dcs_cc.spawnFromCrate(Side, Crate)
+    local _static = STATIC:FindByName(Crate.staticName, true)
+    local _spawn = SPAWN:New(Crate.details.group[Side])
+    local _pos = _static:GetPointVec2()
+    _spawn:SpawnFromStatic(_static)
+    _static:Destroy(false)
+
+    for _i, _crate in dcs_cc.crates[Side] do
+        if _crate.staticName == Crate.staticName then
+            table.remove(dcs_cc.crates[Side], i)
+            break
+        end
+    end
+end
+
+function dcs_cc.unpackCrate(Group, Coalition)
+    local _side = dcs_cc.getCoalitionName(Coalition)
+    local _zone = dcs_cc.unitZones[Group.GroupName]
+
+    local _cratesInZone = {}
+    for _, _crate in pairs(dcs_cc.crates[_side]) do
+        local _static = STATIC:FindByName(_crate.staticName, true)
+        if _zone:IsVec2InZone(_static:GetVec2()) then
+            table.insert(_cratesInZone, _crate)
+        end
+    end
+
+    for _, _crate in pairs(_cratesInZone) do
+        if _crate.details.crates == 1 then
+            dcs_cc.spawnFromCrate(_side, _crate)
+            break
+        end
     end
 end
 
@@ -126,6 +175,10 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
         if dcs_cc.transportGroups[Group.GroupName] == nil then
             if _unit:IsInZone(dcs_cc.spawnZone[_side]) and _unit:InAir() == false then
                 local _details = dcs_cc.objects[Item]
+                local _price = _details.price
+                if _details.crates and _details.crates > 0 then
+                    _price = _price / _details.crates
+                end
 
                 local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _details.price)
                 local _cargoGroup = nil
@@ -137,7 +190,7 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
                         local _country = Group:GetCountry()
                         local _staticSpawn = SPAWNSTATIC:NewFromStatic(config.crateTemplate[_side], _country, Coalition)
                         MESSAGE:New("Crate has been loaded!", 10):ToGroup(Group)
-                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Crate", nil, dcs_cc.unloadCrate, _staticSpawn, Group)
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Crate", nil, dcs_cc.unloadCrate, _side, Item, _staticSpawn, Group)
                         dcs_cc.transportGroups[Group.GroupName] = _menuCommand
                     else
                         local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
@@ -183,7 +236,13 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
             function()
                 local _group = GROUP:FindByName(_groupName)
                 if _group and _group:IsAlive() then
-                    env.info("Adding cargo buying for: " .. _groupName, GLOBAL_DEBUG_MODE)
+                    if dcs_cc.unitZones[_groupName] == nil then
+                        local _unit = _group:GetPlayerUnits()[1]
+                        dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
+                    end
+
+                    MENU_GROUP_COMMAND:New(_group, "Unpack crate", nil, dcs_cc.unpackCrate, _group, _coalition)
+
                     local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
 
                     for item, details in pairs(dcs_cc.objects) do
