@@ -9,13 +9,21 @@ config.startingResources = 10000
 
 config.baseResourceGeneration = 200
 config.zoneResourceGeneration = 100
---config.guardedResourceMultiplier = 2
 config.resourceTickSeconds = 60
 
 -- The name of each sides warehouse
-config.warehouses = {
-    ["blue"] = "BlueWarehouse",
-    ["red"] = "RedWarehouse"
+config.spawnZone = {
+    ["blue"] = "BlueSpawn",
+    ["red"] = "RedSpawn"
+}
+
+config.transportGroups = {
+    ["red"] = {
+        "transport2"
+    },
+    ["blue"] = {
+        "transport1"
+    }
 }
 
 -- The available capture zones (trigger zone names) and initial owner

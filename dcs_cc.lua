@@ -21,12 +21,13 @@ dcs_cc.coalitions = {
 
 dcs_cc.objects = config.objects 
 
-dcs_cc.warehouses = {
-    ["red"] = WAREHOUSE:New(STATIC:FindByName(config.warehouses.red)),
-    ["blue"] = WAREHOUSE:New(STATIC:FindByName(config.warehouses.blue)),
+dcs_cc.spawnZone = {
+    ["blue"] = ZONE:New(config.spawnZone.blue),
+    ["red"] = ZONE:New(config.spawnZone.red),
 }
 
 dcs_cc.captureZones = {}
+dcs_cc.transportGroups = {}
 
 function dcs_cc.getCoalitionName(Coalition)
     if Coalition == coalition.side.BLUE then
@@ -48,10 +49,19 @@ function dcs_cc.coalitionBalance(Coalition)
     msg:ToCoalition(Coalition)
 end
 
-function dcs_cc.addObjectToCoalitionWarehouse(Details, Side)
-    local _warehouse = dcs_cc.warehouses[Side]
-    local _group = GROUP:FindByName(Details.group[Side])
-    _warehouse:AddAsset(_group, 1)
+function dcs_cc.spawnGroup(Details, Side)
+    local _spawn = SPAWN:New(Details.group[Side])
+    local _spawnedGroup = _spawn:SpawnInZone(dcs_cc.spawnZone[Side], true)
+    return _spawnedGroup
+end
+
+function dcs_cc.updateBalance(Side, Price)
+    local _newBalance = dcs_cc.banks[Side] - Price
+    if _newBalance >= 0 then
+        dcs_cc.banks[Side] = _newBalance
+        return true, _newBalance
+    end
+    return false, -1
 end
 
 function dcs_cc.buyItem(Item, Coalition)
@@ -60,36 +70,62 @@ function dcs_cc.buyItem(Item, Coalition)
     local _details = dcs_cc.objects[Item]
     local _price = _details.price
 
-    local _newBalance = dcs_cc.banks[_side] - _price
+    local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _price)
 
-    if _newBalance >= 0 then
-        dcs_cc.banks[_side] = _newBalance
-        dcs_cc.addObjectToCoalitionWarehouse(_details, _side)
+    if _enoughResources then
+        dcs_cc.spawnGroup(_details, _side)
         local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance .. ", please stand by as they are delivered", 10)
         msg:ToCoalition(Coalition)
-        return _newBalance
     else
         local msg = MESSAGE:New("You do not have enough funds to buy " .. Item .. ". Balance is " .. dcs_cc.banks[_side] .. " but the cost for that item is ".. _price, 10)
-        return dcs_cc.banks[_side]   
     end
 end
 
+dcs_cc.cargoIdx = 0
 
-function dcs_cc.requestGroup(Group, Coalition)
-    local _side = dcs_cc.getCoalitionName(Coalition)
-    local _warehouse = dcs_cc.warehouses[_side]
-    local _groupName = dcs_cc.objects[Group].group[_side]
+function dcs_cc.getCargoIndex()
+    dcs_cc.cargoIdx = dcs_cc.cargoIdx + 1
+    return dcs_cc.cargoIdx
+end
 
-    local _numAvailable = _warehouse:GetNumberOfAssets(WAREHOUSE.Descriptor.GROUPNAME, _groupName)
-
-    if _numAvailable > 0 then
-        _warehouse:AddRequest(_warehouse, WAREHOUSE.Descriptor.GROUPNAME, _groupName)
-        local msg = MESSAGE:New("Bringing out units from warehouse, they will be available shortly...", 10)
-        msg:ToCoalition(Coalition)
+function dcs_cc.unloadCargo(CargoGroup, Group)
+    if Group:GetPlayerUnits()[1]:InAir() then
+        local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
+        CargoGroup:UnBoard()
+        _menuCommand:Remove()
+        MESSAGE:New("Cargo unloading", 10):ToGroup(Group)
     else
-        MESSAGE:New("No units available...", 10):ToCoalition(Coalition)
-    end
+        MESSAGE:New("Land first dummy...", 10):ToGroup(Group)
+end
 
+function dcs_cc.buyAsCargo(Item, Coalition, Group)
+    local _side = dcs_cc.getCoalitionName(Coalition)
+    local _unit = Group:GetPlayerUnits()[1]
+    if _unit ~= nil then
+        if dcs_cc.transportGroups[Group.GroupName] == nil then
+            if _unit:IsInZone(dcs_cc.spawnZone[_side]) and _unit:InAir() == false then
+                local _details = dcs_cc.objects[Item]
+
+                local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _details.price)
+
+                if _enoughResources then
+                    local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
+                    local _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
+                    _cargoGroup:Board(_unit, 25)
+                    MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
+                    local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
+                    dcs_cc.transportGroups[Group.GroupName] = _menuCommand
+                else
+                    MESSAGE:New("Not enough resources", 10):ToGroup(Group)
+                end
+
+            else
+                MESSAGE:New("You are not in the correct zone", 10):ToGroup(Group)
+            end
+        else
+            MESSAGE:New("You are already carrying cargo!", 10):ToGroup(Group)
+        end
+    end
 end
 
 -- setup menu
@@ -109,16 +145,26 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
         end
     end
     
-    local _spawnMenu = MENU_COALITION:New(_coalition, "Spawn", _mainMenu)
-
-    for _item, _ in pairs(dcs_cc.objects) do
-        MENU_COALITION_COMMAND:New(_coalition, _item, _spawnMenu, dcs_cc.requestGroup, _item, _coalition)
+    for _, _groupName in pairs(config.transportGroups[_side]) do
+        SCHEDULER:New(nil,
+            function()
+                local _group = GROUP:FindByName(_groupName)
+                if _group and _group:IsAlive() then
+                    env.info("Adding cargo buying for: " .. _groupName, GLOBAL_DEBUG_MODE)
+                    local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
+            
+                    dcs_cc.transportGroups[_groupName] = nil
+            
+                    -- TODO remove duplicate code
+                    for item, details in pairs(dcs_cc.objects) do
+                        if details.group[_side] ~= nil then
+                            local _title = item .. ": " .. details.price
+                            MENU_GROUP_COMMAND:New(_group, _title, _buyAsCargoMenu, dcs_cc.buyAsCargo, item, _coalition, _group)
+                        end
+                    end
+                end
+            end, {}, 10, 10)
     end
-end
-
--- Start warehouses
-for _, warehouse in pairs(dcs_cc.warehouses) do
-    warehouse:Start()
 end
 
 -- Start Capture Zones
