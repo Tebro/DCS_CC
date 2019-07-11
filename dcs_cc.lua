@@ -122,10 +122,12 @@ for _zone, _side in pairs(config.captureZones) do
     local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)
     -- Start the zone monitoring process in 30 seconds and check every 30 seconds.
     _captureZone:Start(30, 30)
+    _captureZone:Mark()
     table.insert(dcs_cc.captureZones, _captureZone)
 end
 
 function dcs_cc.tickResources()
+    env.info("RUNNING TICKS", GLOBAL_DEBUG_MODE)
     local _redTickAmount = config.baseResourceGeneration
     local _blueTickAmount = config.baseResourceGeneration
 
@@ -134,17 +136,19 @@ function dcs_cc.tickResources()
             local _tickAmount = config.zoneResourceGeneration
 
             if _captureZone:GetCoalition() == coalition.side.RED then
-                _redTickAmount += _tickAmount
+                _redTickAmount = _redTickAmount + _tickAmount
             else
-                _blueTickAmount += _tickAmount
+                _blueTickAmount = _blueTickAmount + _tickAmount
             end
         end
     end
 
-    dcs_cc.banks.red += _redTickAmount
-    dcs_cc.banks.blue += _blueTickAmount
+    dcs_cc.banks.red = dcs_cc.banks.red + _redTickAmount
+    dcs_cc.banks.blue = dcs_cc.banks.blue + _blueTickAmount
+
+    MESSAGE:New("Resources gained, Blue: " .. _blueTickAmount .. ", Red: " .. _redTickAmount, 10):ToAll()
 end
 
 -- Resource ticking
-SCHEDULER:New(nil, dcs_cc.tickResources, nil, config.resourceTickSeconds, config.resourceTickSeconds)
+SCHEDULER:New(nil, dcs_cc.tickResources, {}, config.resourceTickSeconds, config.resourceTickSeconds):Start()
 env.info("LOADING DCS_CC FINISHED", GLOBAL_DEBUG_MODE)
