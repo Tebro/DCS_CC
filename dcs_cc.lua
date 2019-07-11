@@ -88,15 +88,20 @@ function dcs_cc.getCargoIndex()
     return dcs_cc.cargoIdx
 end
 
+function dcs_cc.unloadCargo(CargoGroup, Group, UseBoard)
     local _unit = Group:GetPlayerUnits()[1]
     if _unit:InAir() == false then
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
-        CargoGroup:UnBoard()
+        if UseBoard then
+            CargoGroup:UnBoard()
+        else
+            CargoGroup:UnLoad()
+        end
         _menuCommand:Remove()
         MESSAGE:New("Cargo unloading", 10):ToGroup(Group)
     else
         MESSAGE:New("Land first dummy...", 10):ToGroup(Group)
-end
+    end
 end
 
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
@@ -108,14 +113,26 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
                 local _details = dcs_cc.objects[Item]
 
                 local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _details.price)
+                local _cargoGroup = nil
+
 
                 if _enoughResources then
-                    local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
-                    local _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
-                    _cargoGroup:Board(_unit, 25)
-                    MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
-                    local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
-                    dcs_cc.transportGroups[Group.GroupName] = _menuCommand
+
+                    --if _details.crates and _details.crates > 0 then
+                    --    -- TODO crates
+                    --else
+                        local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
+                        _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
+                        if _details.useBoard then
+                            _cargoGroup:Board(_unit, 25)
+                            MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
+                        else
+                            _cargoGroup:Load(_unit)
+                            MESSAGE:New("The cargo is loaded", 10):ToGroup(Group)
+                        end
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group, _details.useBoard)
+                        dcs_cc.transportGroups[Group.GroupName] = _menuCommand
+                    --end
                 else
                     MESSAGE:New("Not enough resources", 10):ToGroup(Group)
                 end
@@ -154,7 +171,7 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
                 if _group and _group:IsAlive() then
                     env.info("Adding cargo buying for: " .. _groupName, GLOBAL_DEBUG_MODE)
                     local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
-            
+
                     for item, details in pairs(dcs_cc.objects) do
                         if details.group[_side] ~= nil and details.transportable then
                             local _title = item .. ": " .. details.price
