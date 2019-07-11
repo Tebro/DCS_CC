@@ -88,15 +88,11 @@ function dcs_cc.getCargoIndex()
     return dcs_cc.cargoIdx
 end
 
-function dcs_cc.unloadCargo(CargoGroup, Group, UseBoard)
+function dcs_cc.unloadCargo(CargoGroup, Group)
     local _unit = Group:GetPlayerUnits()[1]
     if _unit:InAir() == false then
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
-        if UseBoard then
-            CargoGroup:UnBoard()
-        else
-            CargoGroup:UnLoad()
-        end
+        CargoGroup:UnBoard()
         _menuCommand:Remove()
         MESSAGE:New("Cargo unloading", 10):ToGroup(Group)
     else
@@ -123,14 +119,9 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
                     --else
                         local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
                         _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
-                        if _details.useBoard then
-                            _cargoGroup:Board(_unit, 25)
-                            MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
-                        else
-                            _cargoGroup:Load(_unit)
-                            MESSAGE:New("The cargo is loaded", 10):ToGroup(Group)
-                        end
-                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group, _details.useBoard)
+                        _cargoGroup:Board(_unit, 25)
+                        MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
                         dcs_cc.transportGroups[Group.GroupName] = _menuCommand
                     --end
                 else

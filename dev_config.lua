@@ -44,7 +44,6 @@ config.objects = {
     ["Tank Group"] = {
         ["price"] = 1000,
         ["transportable"] = true,
-        ["useBoard"] = true,
         ["crates"] = 1,
         -- A group name referencing a late activated group placed in the mission
         ["group"] = {
@@ -55,7 +54,6 @@ config.objects = {
     ["Truck Group"] = {
         ["price"] = 50,
         ["transportable"] = true,
-        ["useBoard"] = true,
         ["crates"] = 1,
         ["group"] = {
             ["blue"] = "BlueTrucksTemplate"
@@ -64,7 +62,6 @@ config.objects = {
     ["Infantry Squad"] = {
         ["price"] = 100,
         ["transportable"] = true,
-        ["useBoard"] = true,
         ["group"] = {
             ["blue"] = "BlueSquadTemplate"
         }
