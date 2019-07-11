@@ -57,7 +57,7 @@ function dcs_cc.buyItem(Item, Coalition)
     if _newBalance >= 0 then
         dcs_cc.banks[_side] = _newBalance
         dcs_cc.addObjectToCoalitionWarehouse(_details, _side)
-        local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance .. ", pleawse stand by as they are delivered", 10)
+        local msg = MESSAGE:New(Item .. " bought for " .. _price .. ", new balance is: " .. _newBalance .. ", please stand by as they are delivered", 10)
         msg:ToCoalition(Coalition)
         return _newBalance
     else
