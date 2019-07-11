@@ -82,7 +82,7 @@ config.objects = {
         ["transportable"] = true,
         ["crates"] = 2,
         ["group"] = {
-            ["blue"] = "BlueSquadTemplate",
+            ["blue"] = "BlueRoland",
         }
     },
     ["SA6"] = {
@@ -96,6 +96,7 @@ config.objects = {
     ["Stinger team"] = {
         ["price"] = 300,
         ["transportable"] = true,
+        ["crates"] = 1,
         ["group"] = {
             ["blue"] = "BlueStinger",
             ["red"] = "RedStinger"
