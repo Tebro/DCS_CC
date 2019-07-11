@@ -33,10 +33,18 @@ config.captureZones = {
     ["Zone2"] = "red"
 }
 
+-- Name of static objects representing cargo crates
+config.crateTemplate = {
+    ["red"] = "Crate",
+    ["blue"] = "Crate"
+}
+
 -- Configuration of buyable groups
 config.objects = {
     ["Tank Group"] = {
         ["price"] = 1000,
+        ["transportable"] = true,
+        ["crates"] = 1,
         -- A group name referencing a late activated group placed in the mission
         ["group"] = {
             ["blue"] = "BlueTanksTemplate",
@@ -45,12 +53,16 @@ config.objects = {
     },
     ["Truck Group"] = {
         ["price"] = 50,
+        ["transportable"] = true,
+        ["crates"] = 1,
         ["group"] = {
             ["blue"] = "BlueTrucksTemplate"
         }
     },
     ["Infantry Squad"] = {
         ["price"] = 100,
+        ["transportable"] = true,
+        ["useBoard"] = true,
         ["group"] = {
             ["blue"] = "BlueSquadTemplate"
         }

@@ -88,14 +88,15 @@ function dcs_cc.getCargoIndex()
     return dcs_cc.cargoIdx
 end
 
-function dcs_cc.unloadCargo(CargoGroup, Group)
-    if Group:GetPlayerUnits()[1]:InAir() then
+    local _unit = Group:GetPlayerUnits()[1]
+    if _unit:InAir() == false then
         local _menuCommand = dcs_cc.transportGroups[Group.GroupName]
         CargoGroup:UnBoard()
         _menuCommand:Remove()
         MESSAGE:New("Cargo unloading", 10):ToGroup(Group)
     else
         MESSAGE:New("Land first dummy...", 10):ToGroup(Group)
+end
 end
 
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
@@ -146,6 +147,7 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
     end
     
     for _, _groupName in pairs(config.transportGroups[_side]) do
+        dcs_cc.transportGroups[_groupName] = nil
         SCHEDULER:New(nil,
             function()
                 local _group = GROUP:FindByName(_groupName)
@@ -153,11 +155,8 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
                     env.info("Adding cargo buying for: " .. _groupName, GLOBAL_DEBUG_MODE)
                     local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
             
-                    dcs_cc.transportGroups[_groupName] = nil
-            
-                    -- TODO remove duplicate code
                     for item, details in pairs(dcs_cc.objects) do
-                        if details.group[_side] ~= nil then
+                        if details.group[_side] ~= nil and details.transportable then
                             local _title = item .. ": " .. details.price
                             MENU_GROUP_COMMAND:New(_group, _title, _buyAsCargoMenu, dcs_cc.buyAsCargo, item, _coalition, _group)
                         end
