@@ -1,13 +1,15 @@
 -- Set to true to get alert boxes with log messages
 GLOBAL_DEBUG_MODE = false
+GLOBAL_MOOSE_DEBUG = false
 
 config = {}
+
 
 config.startingResources = 10000
 
 config.baseResourceGeneration = 200
 config.zoneResourceGeneration = 100
-config.guardedResourceMultiplier = 2
+--config.guardedResourceMultiplier = 2
 config.resourceTickSeconds = 60
 
 -- The name of each sides warehouse
@@ -29,7 +31,20 @@ config.objects = {
         ["price"] = 1000,
         -- A group name referencing a late activated group placed in the mission
         ["group"] = {
-            ["blue"] = "TanksTemplate",
+            ["blue"] = "BlueTanksTemplate",
+            ["red"] = "RedTanksTemplate"
         }
     },
+    ["Truck Group"] = {
+        ["price"] = 50,
+        ["group"] = {
+            ["blue"] = "BlueTrucksTemplate"
+        }
+    },
+    ["Infantry Squad"] = {
+        ["price"] = 100,
+        ["group"] = {
+            ["blue"] = "BlueSquadTemplate"
+        }
+    }
 }

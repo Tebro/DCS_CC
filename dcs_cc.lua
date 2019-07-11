@@ -1,3 +1,11 @@
+
+if GLOBAL_MOOSE_DEBUG then
+    BASE:TraceOnOff(true)
+    BASE:TraceAll(true)
+    BASE:TraceLevel(2)
+end
+
+
 env.info("LOADING DCS_CC", GLOBAL_DEBUG_MODE)
 
 dcs_cc = {}
@@ -152,3 +160,4 @@ end
 -- Resource ticking
 SCHEDULER:New(nil, dcs_cc.tickResources, {}, config.resourceTickSeconds, config.resourceTickSeconds):Start()
 env.info("LOADING DCS_CC FINISHED", GLOBAL_DEBUG_MODE)
+MESSAGE:New("Ready to Command & Conquer", 10):ToAll()
