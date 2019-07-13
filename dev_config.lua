@@ -17,6 +17,15 @@ config.spawnZone = {
     ["red"] = "RedSpawn"
 }
 
+config.cargoZones = {
+    ["blue"] = {
+        "BlueSpawn"
+    },
+    ["red"] = {
+        "RedSpawn"
+    }
+}
+
 config.transportGroups = {
     ["red"] = {
         "transport2",
