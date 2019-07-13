@@ -243,8 +243,12 @@ function dcs_cc.unpackCrate(Group, Coalition)
     MESSAGE:New("No viable crates nearby", 10):ToGroup(Group)
 end
 
+function dcs_cc.isCrateCargo(Details)
+    return (Details.crates and Details.crates > 0)
+end
+
 function dcs_cc.getCargoPrice(Details)
-    if Details.crates and Details.crates > 0 then
+    if dcs_cc.isCrateCargo(Details) then
         return Details.price/Details.crates
     end
     return Details.price
@@ -257,13 +261,6 @@ function dcs_cc.unitInPositionForCargo(Side, Unit)
                 return true
             end
         end
-    end
-    return false
-end
-
-function dcs_cc.isCrateCargo(Details)
-    if Details.crates and Details.crates > 0 then
-        return true
     end
     return false
 end
