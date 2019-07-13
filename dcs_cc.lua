@@ -255,7 +255,7 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
     local _unit = Group:GetPlayerUnits()[1]
     if _unit ~= nil then
         if dcs_cc.transportGroups[Group.GroupName] == nil then
-            for _, _zone in pairs(dcs_cc.cargoZones) do
+            for _, _zone in pairs(dcs_cc.cargoZones[_side]) do
                 if _unit:IsInZone(_zone) and _unit:InAir() == false then
                     local _details = dcs_cc.objects[Item]
                     local _price = dcs_cc.getCargoPrice(_details)
