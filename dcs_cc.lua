@@ -328,9 +328,16 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
                 local _group = GROUP:FindByName(_groupName)
                 if _group and _group:IsAlive() then
                     local _unit = _group:GetPlayerUnits()[1]
+                    _unit:HandleEvent(EVENTS.Dead)
                     function _unit:OnEventDead(EventData)
+                        local _menuCommand = dcs_cc.transportGroups[_groupName]
+                        if _menuCommand then
+                            _menuCommand:Remove()
+                        end
                         dcs_cc.transportGroups[_groupName] = nil
-                        dcs_cc.unitZones[_groupName] = nil
+                        dcs_cc.unitZones[_groupName] = nil 
+                        -- The zone is not removed, but never checked again, can this cause a performance issue? Should it be left in and reused?
+                        -- TODO TEST
                     end
                     if dcs_cc.unitZones[_groupName] == nil then
                         dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
