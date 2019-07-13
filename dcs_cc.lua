@@ -250,43 +250,57 @@ function dcs_cc.getCargoPrice(Details)
     return Details.price
 end
 
+function dcs_cc.unitInPositionForCargo(Side, Unit)
+    if Unit:InAir() == false then
+        for _, _zone in pairs(dcs_cc.cargoZones[_side]) do
+            if Unit:IsInZone(_zone) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function dcs_cc.isCrateCargo(Details)
+    if Details.crates and Details.crates > 0 then
+        return true
+    end
+    return false
+end
+
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
     local _side = dcs_cc.getCoalitionName(Coalition)
     local _unit = Group:GetPlayerUnits()[1]
     if _unit ~= nil then
         if dcs_cc.transportGroups[Group.GroupName] == nil then
-            for _, _zone in pairs(dcs_cc.cargoZones[_side]) do
-                if _unit:IsInZone(_zone) and _unit:InAir() == false then
-                    local _details = dcs_cc.objects[Item]
-                    local _price = dcs_cc.getCargoPrice(_details)
+            if dcs_cc.unitInPositionForCargo(_side, _unit) then
+                local _details = dcs_cc.objects[Item]
+                local _price = dcs_cc.getCargoPrice(_details)
 
-                    local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _price)
-                    local _cargoGroup = nil
+                local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _price)
 
-                    if _enoughResources then
+                if _enoughResources then
 
-                        if _details.crates and _details.crates > 0 then
-                            local _country = Group:GetCountry()
-                            local _staticSpawn = SPAWNSTATIC:NewFromStatic(config.crateTemplate[_side], _country, Coalition)
-                            MESSAGE:New("Crate has been loaded!", 10):ToGroup(Group)
-                            local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Crate", nil, dcs_cc.unloadCrate, _side, Item, _staticSpawn, Group)
-                            dcs_cc.transportGroups[Group.GroupName] = _menuCommand
-                        else
-                            local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
-                            _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
-                            _cargoGroup:Board(_unit, 25)
-                            MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
-                            local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
-                            dcs_cc.transportGroups[Group.GroupName] = _menuCommand
-                        end
+                    if dcs_cc.isCrateCargo(_details) then
+                        local _country = Group:GetCountry()
+                        local _staticSpawn = SPAWNSTATIC:NewFromStatic(config.crateTemplate[_side], _country, Coalition)
+                        MESSAGE:New("Crate has been loaded!", 10):ToGroup(Group)
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Crate", nil, dcs_cc.unloadCrate, _side, Item, _staticSpawn, Group)
+                        dcs_cc.transportGroups[Group.GroupName] = _menuCommand
                     else
-                        MESSAGE:New("Not enough resources", 10):ToGroup(Group)
+                        local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
+                        local _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
+                        _cargoGroup:Board(_unit, 25)
+                        MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
+                        local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
+                        dcs_cc.transportGroups[Group.GroupName] = _menuCommand
                     end
-                    return -- skip the rest to prevent invalid messages
+                else
+                    MESSAGE:New("Not enough resources", 10):ToGroup(Group)
                 end
+            else
+                MESSAGE:New("You are not in a cargo zone", 10):ToGroup(Group)
             end
-            -- In no zone
-            MESSAGE:New("You are not in the correct zone", 10):ToGroup(Group)
         else
             MESSAGE:New("You are already carrying cargo!", 10):ToGroup(Group)
         end
