@@ -169,9 +169,15 @@ end
 function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
     local _unit = Group:GetPlayerUnits()[1]
     local _pos = _unit:GetCoordinate()
+    local _heading = _unit:GetHeading()
     local _altitude = _unit:GetAltitude() - _pos:GetLandHeight()
+
     if _altitude < 20 then
-        local _cratePos = _unit:GetPointVec2():AddX(20):SetAlt()
+        local _dist = 30
+        local _X = distmath.cos((_heading3.14)/180)
+        local _Y = distmath.sin((_heading3.14)/180)
+        local _cratePos = _unit:GetPointVec2():AddX(_X):AddY(_Y):SetAlt()
+
         local _staticName = CargoType .. dcs_cc.getCargoIndex()
         local _crate = StaticSpawn:SpawnFromPointVec2(_cratePos, 0, _staticName)
 
