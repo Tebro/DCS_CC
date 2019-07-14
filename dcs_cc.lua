@@ -256,7 +256,7 @@ end
 
 function dcs_cc.unitInPositionForCargo(Side, Unit)
     if Unit:InAir() == false then
-        for _, _zone in pairs(dcs_cc.cargoZones[_side]) do
+        for _, _zone in pairs(dcs_cc.cargoZones[Side]) do
             if Unit:IsInZone(_zone) then
                 return true
             end
