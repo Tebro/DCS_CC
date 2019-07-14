@@ -19,10 +19,12 @@ config.spawnZone = {
 
 config.cargoZones = {
     ["blue"] = {
-        "BlueSpawn"
+        "BlueSpawn",
+        "Zone5"
     },
     ["red"] = {
-        "RedSpawn"
+        "RedSpawn",
+        "Zone5"
     }
 }
 

@@ -34,18 +34,48 @@ dcs_cc.crates = {
     ["blue"] = {}
 }
 
-function dcs_cc.initCargoZones(Side)
-    local _result = {}
-    for _, _zone in pairs(config.cargoZones[Side]) do
-        table.insert(_result, ZONE:New(_zone))
+function dcs_cc.initCargoZones()
+    -- This whole function is ugly, but it makes sure that no zone gets two ZONE objects.
+    local _blueZoneNames = config.cargoZones["blue"]
+    local _redZoneNames = config.cargoZones["red"]
+
+    local _blueZones = {}
+
+    for _, _zone in pairs(_blueZoneNames) do
+        if dcs_cc.spawnZone["blue"]:GetName() == _zone then
+            table.insert(_blueZones, dcs_cc.spawnZone["blue"])
+        else
+            table.insert(_blueZones, ZONE:New(_zone))
+        end
     end
-    return _result
+
+    local _redZones = {}
+
+    for _, _zone in pairs(_redZoneNames) do
+        if dcs_cc.spawnZone["red"]:GetName() == _zone then
+            table.insert(_blueZones, dcs_cc.spawnZone["red"])
+        else
+            local notFoundInBlue = true
+            for _, _blueZone in pairs(_blueZones) do
+                if _blueZone:GetName() == _zone then
+                    table.insert(_redZones, _blueZone)
+                    notFoundInBlue = false
+                end
+            end
+
+            if notFoundInBlue then
+                table.insert(_redZones, ZONE:New(_zone))
+            end
+        end
+    end
+
+    return {
+        ["red"] = _redZones,
+        ["blue"] = _blueZones
+    }
 end
 
-dcs_cc.cargoZones = {
-    ["red"] = dcs_cc.initCargoZones("red"),
-    ["blue"] = dcs_cc.initCargoZones("blue")
-}
+dcs_cc.cargoZones = dcs_cc.initCargoZones 
 
 dcs_cc.spawners = {}
 
@@ -254,11 +284,31 @@ function dcs_cc.getCargoPrice(Details)
     return Details.price
 end
 
+function dcs_cc.maybeCaptureZone(Zone)
+    for _, _captureZone in pairs(dcs_cc.captureZones) do
+        if _captureZone.Zone == Zone then
+            return _captureZone
+        end
+    end
+    return nil
+end
+
+function dcs_cc.isCaptureZoneCaptured(Side, CaptureZone)
+    return (CaptureZone:GetCoalition() == dcs_cc.getMooseCoalition(Side) and CaptureZone:IsGuarded())
+end
+
 function dcs_cc.unitInPositionForCargo(Side, Unit)
     if Unit:InAir() == false then
         for _, _zone in pairs(dcs_cc.cargoZones[Side]) do
             if Unit:IsInZone(_zone) then
-                return true
+                _captureZone = dcs_cc.maybeCaptureZone(_zone)
+                if _captureZone then
+                    if dcs_cc.isCaptureZoneCaptured(Side, _captureZone) then
+                        return true
+                    end
+                    return false
+                end
+                return true -- not capture zone, so can load no matter what
             end
         end
     end
@@ -363,10 +413,19 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
     end
 end
 
+function dcs_cc.maybeCargoZone(Side, ZoneName)
+    for _i, _z in pairs(dcs_cc.cargoZones[Side]) do
+        if _z:GetName() == ZoneName then
+            return _z
+        end
+    end
+    return nil
+end
+
 -- Start Capture Zones
 
 for _zone, _side in pairs(config.captureZones) do
-    local _triggerZone = ZONE:New(_zone)
+    local _triggerZone = (dcs_cc.maybeCargoZone(_side, _zone) or ZONE:New(_zone))
     local _coalition = dcs_cc.getMooseCoalition(_side)
 
     local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)
