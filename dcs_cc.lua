@@ -174,8 +174,8 @@ function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
 
     if _altitude < 20 then
         local _dist = 30
-        local _X = distmath.cos((_heading3.14)/180)
-        local _Y = distmath.sin((_heading3.14)/180)
+        local _X = _dist * math.cos((_heading*3.14)/180)
+        local _Y = _dist * math.sin((_heading*3.14)/180)
         local _cratePos = _unit:GetPointVec2():AddX(_X):AddY(_Y):SetAlt()
 
         local _staticName = CargoType .. dcs_cc.getCargoIndex()
