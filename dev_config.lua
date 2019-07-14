@@ -44,7 +44,7 @@ config.transportGroups = {
 }
 
 -- The available capture zones (trigger zone names) and initial owner
--- Owning is does not generate resource, but is a must have anyway
+-- Owning it does not generate resource, but it is a must have anyway
 config.captureZones = {
     ["Zone1"] = "blue",
     ["Zone2"] = "red",
