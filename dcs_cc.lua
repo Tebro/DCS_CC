@@ -75,7 +75,7 @@ function dcs_cc.initCargoZones()
     }
 end
 
-dcs_cc.cargoZones = dcs_cc.initCargoZones 
+dcs_cc.cargoZones = dcs_cc.initCargoZones() 
 
 dcs_cc.spawners = {}
 
@@ -414,7 +414,7 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
 end
 
 function dcs_cc.maybeCargoZone(Side, ZoneName)
-    for _i, _z in pairs(dcs_cc.cargoZones[Side]) do
+    for _, _z in pairs(dcs_cc.cargoZones[Side]) do
         if _z:GetName() == ZoneName then
             return _z
         end
