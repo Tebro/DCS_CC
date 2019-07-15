@@ -99,3 +99,8 @@ After you have completed setting up your config file, you need to load the scrip
 
 3. Set up one last trigger, again with more time in "TIME MORE" that loads the dcs_cc.lua script.
 
+
+# Contributors
+
+- [Tebro](https://github.com/Tebro)
+- [mBloodnok](https://github.com/mBloodnok)
