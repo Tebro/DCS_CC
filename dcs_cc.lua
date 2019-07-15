@@ -34,6 +34,49 @@ dcs_cc.crates = {
     ["blue"] = {}
 }
 
+function dcs_cc.initCargoZones()
+    -- This whole function is ugly, but it makes sure that no zone gets two ZONE objects.
+    local _blueZoneNames = config.cargoZones["blue"]
+    local _redZoneNames = config.cargoZones["red"]
+
+    local _blueZones = {}
+
+    for _, _zone in pairs(_blueZoneNames) do
+        if dcs_cc.spawnZone["blue"]:GetName() == _zone then
+            table.insert(_blueZones, dcs_cc.spawnZone["blue"])
+        else
+            table.insert(_blueZones, ZONE:New(_zone))
+        end
+    end
+
+    local _redZones = {}
+
+    for _, _zone in pairs(_redZoneNames) do
+        if dcs_cc.spawnZone["red"]:GetName() == _zone then
+            table.insert(_redZones, dcs_cc.spawnZone["red"])
+        else
+            local notFoundInBlue = true
+            for _, _blueZone in pairs(_blueZones) do
+                if _blueZone:GetName() == _zone then
+                    table.insert(_redZones, _blueZone)
+                    notFoundInBlue = false
+                end
+            end
+
+            if notFoundInBlue then
+                table.insert(_redZones, ZONE:New(_zone))
+            end
+        end
+    end
+
+    return {
+        ["red"] = _redZones,
+        ["blue"] = _blueZones
+    }
+end
+
+dcs_cc.cargoZones = dcs_cc.initCargoZones() 
+
 dcs_cc.spawners = {}
 
 function dcs_cc.getSpawner(Template)
@@ -126,9 +169,15 @@ end
 function dcs_cc.unloadCrate(Side, CargoType, StaticSpawn, Group)
     local _unit = Group:GetPlayerUnits()[1]
     local _pos = _unit:GetCoordinate()
+    local _heading = _unit:GetHeading()
     local _altitude = _unit:GetAltitude() - _pos:GetLandHeight()
+
     if _altitude < 20 then
-        local _cratePos = _unit:GetPointVec2():AddX(20):SetAlt()
+        local _dist = 30
+        local _X = _dist * math.cos((_heading*3.14)/180)
+        local _Y = _dist * math.sin((_heading*3.14)/180)
+        local _cratePos = _unit:GetPointVec2():AddX(_X):AddY(_Y):SetAlt()
+
         local _staticName = CargoType .. dcs_cc.getCargoIndex()
         local _crate = StaticSpawn:SpawnFromPointVec2(_cratePos, 0, _staticName)
 
@@ -230,11 +279,46 @@ function dcs_cc.unpackCrate(Group, Coalition)
     MESSAGE:New("No viable crates nearby", 10):ToGroup(Group)
 end
 
+function dcs_cc.isCrateCargo(Details)
+    return (Details.crates and Details.crates > 0)
+end
+
 function dcs_cc.getCargoPrice(Details)
-    if Details.crates and Details.crates > 0 then
+    if dcs_cc.isCrateCargo(Details) then
         return Details.price/Details.crates
     end
     return Details.price
+end
+
+function dcs_cc.maybeCaptureZone(Zone)
+    for _, _captureZone in pairs(dcs_cc.captureZones) do
+        if _captureZone.Zone == Zone then
+            return _captureZone
+        end
+    end
+    return nil
+end
+
+function dcs_cc.isCaptureZoneCaptured(Side, CaptureZone)
+    return (CaptureZone:GetCoalition() == dcs_cc.getMooseCoalition(Side) and CaptureZone:IsGuarded())
+end
+
+function dcs_cc.unitInPositionForCargo(Side, Unit)
+    if Unit:InAir() == false then
+        for _, _zone in pairs(dcs_cc.cargoZones[Side]) do
+            if Unit:IsInZone(_zone) then
+                _captureZone = dcs_cc.maybeCaptureZone(_zone)
+                if _captureZone then
+                    if dcs_cc.isCaptureZoneCaptured(Side, _captureZone) then
+                        return true
+                    end
+                    return false
+                end
+                return true -- not capture zone, so can load no matter what
+            end
+        end
+    end
+    return false
 end
 
 function dcs_cc.buyAsCargo(Item, Coalition, Group)
@@ -242,17 +326,15 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
     local _unit = Group:GetPlayerUnits()[1]
     if _unit ~= nil then
         if dcs_cc.transportGroups[Group.GroupName] == nil then
-            if _unit:IsInZone(dcs_cc.spawnZone[_side]) and _unit:InAir() == false then
+            if dcs_cc.unitInPositionForCargo(_side, _unit) then
                 local _details = dcs_cc.objects[Item]
                 local _price = dcs_cc.getCargoPrice(_details)
 
                 local _enoughResources, _newBalance = dcs_cc.updateBalance(_side, _price)
-                local _cargoGroup = nil
-
 
                 if _enoughResources then
 
-                    if _details.crates and _details.crates > 0 then
+                    if dcs_cc.isCrateCargo(_details) then
                         local _country = Group:GetCountry()
                         local _staticSpawn = SPAWNSTATIC:NewFromStatic(config.crateTemplate[_side], _country, Coalition)
                         MESSAGE:New("Crate has been loaded!", 10):ToGroup(Group)
@@ -260,7 +342,7 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
                         dcs_cc.transportGroups[Group.GroupName] = _menuCommand
                     else
                         local _spawnedGroup = dcs_cc.spawnGroup(_details, _side)
-                        _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
+                        local _cargoGroup = CARGO_GROUP:New(_spawnedGroup, "Cargo", "Cargo " .. dcs_cc.getCargoIndex())
                         _cargoGroup:Board(_unit, 25)
                         MESSAGE:New("The cargo is on the way", 10):ToGroup(Group)
                         local _menuCommand = MENU_GROUP_COMMAND:New(Group, "Unload Cargo", nil, dcs_cc.unloadCargo, _cargoGroup, Group)
@@ -269,9 +351,8 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
                 else
                     MESSAGE:New("Not enough resources", 10):ToGroup(Group)
                 end
-
             else
-                MESSAGE:New("You are not in the correct zone", 10):ToGroup(Group)
+                MESSAGE:New("You are not in a cargo zone", 10):ToGroup(Group)
             end
         else
             MESSAGE:New("You are already carrying cargo!", 10):ToGroup(Group)
@@ -303,9 +384,16 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
                 local _group = GROUP:FindByName(_groupName)
                 if _group and _group:IsAlive() then
                     local _unit = _group:GetPlayerUnits()[1]
+                    _unit:HandleEvent(EVENTS.Dead)
                     function _unit:OnEventDead(EventData)
+                        local _menuCommand = dcs_cc.transportGroups[_groupName]
+                        if _menuCommand then
+                            _menuCommand:Remove()
+                        end
                         dcs_cc.transportGroups[_groupName] = nil
-                        dcs_cc.unitZones[_groupName] = nil
+                        dcs_cc.unitZones[_groupName] = nil 
+                        -- The zone is not removed, but never checked again, can this cause a performance issue? Should it be left in and reused?
+                        -- TODO TEST
                     end
                     if dcs_cc.unitZones[_groupName] == nil then
                         dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
@@ -331,10 +419,21 @@ for _, _coalition in pairs(dcs_cc.coalitions) do
     end
 end
 
+function dcs_cc.maybeCargoZone(ZoneName)
+    for _, _side in pairs({"red", "blue"}) do
+        for _, _z in pairs(dcs_cc.cargoZones[_side]) do
+            if _z:GetName() == ZoneName then
+                return _z
+            end
+        end
+    end
+    return nil
+end
+
 -- Start Capture Zones
 
 for _zone, _side in pairs(config.captureZones) do
-    local _triggerZone = ZONE:New(_zone)
+    local _triggerZone = (dcs_cc.maybeCargoZone(_zone) or ZONE:New(_zone))
     local _coalition = dcs_cc.getMooseCoalition(_side)
 
     local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)

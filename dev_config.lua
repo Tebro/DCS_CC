@@ -17,6 +17,17 @@ config.spawnZone = {
     ["red"] = "RedSpawn"
 }
 
+config.cargoZones = {
+    ["blue"] = {
+        "BlueSpawn",
+        "Zone5"
+    },
+    ["red"] = {
+        "RedSpawn",
+        "Zone5"
+    }
+}
+
 config.transportGroups = {
     ["red"] = {
         "transport2",
@@ -33,7 +44,7 @@ config.transportGroups = {
 }
 
 -- The available capture zones (trigger zone names) and initial owner
--- Owning is does not generate resource, but is a must have anyway
+-- Owning it does not generate resource, but it is a must have anyway
 config.captureZones = {
     ["Zone1"] = "blue",
     ["Zone2"] = "red",
