@@ -9,7 +9,6 @@ end
 -- Load it once
 loadScript()
 
--- Setup radio option to reload it
 
---devMenu = MENU_MISSION:New("DCS_CC DEVELOPMENT")
---MENU_MISSION_COMMAND:New("Reload scripts", devMenu, loadScript, nil)
+-- run the start function
+dcs_cc.start()
