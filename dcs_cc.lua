@@ -1,30 +1,15 @@
 
-if GLOBAL_MOOSE_DEBUG then
-    BASE:TraceOnOff(true)
-    BASE:TraceAll(true)
-    BASE:TraceLevel(2)
-end
-
-
-env.info("LOADING DCS_CC", GLOBAL_DEBUG_MODE)
-
-dcs_cc = {}
+local dcs_cc = {}
 
 dcs_cc.banks = {}
-dcs_cc.banks.red = config.startingResources
-dcs_cc.banks.blue = config.startingResources
+dcs_cc.banks.red = 0
+dcs_cc.banks.blue = 0
 
-dcs_cc.coalitions = {
-    coalition.side.BLUE,
-    coalition.side.RED,
-}
+dcs_cc.coalitions = nil
 
-dcs_cc.objects = config.objects 
+dcs_cc.objects = nil
 
-dcs_cc.spawnZone = {
-    ["blue"] = ZONE:New(config.spawnZone.blue),
-    ["red"] = ZONE:New(config.spawnZone.red),
-}
+dcs_cc.spawnZone = nil
 
 dcs_cc.captureZones = {}
 dcs_cc.transportGroups = {}
@@ -75,7 +60,7 @@ function dcs_cc.initCargoZones()
     }
 end
 
-dcs_cc.cargoZones = dcs_cc.initCargoZones() 
+dcs_cc.cargoZones = nil
 
 dcs_cc.spawners = {}
 
@@ -360,89 +345,6 @@ function dcs_cc.buyAsCargo(Item, Coalition, Group)
     end
 end
 
--- setup menu
-for _, _coalition in pairs(dcs_cc.coalitions) do
-    local _mainMenu = MENU_COALITION:New(_coalition, "DCS Command & Conquer")
-    local _side = dcs_cc.getCoalitionName(_coalition)
-
-    MENU_COALITION_COMMAND:New(_coalition, "Balance", _mainMenu, dcs_cc.coalitionBalance, _coalition)
-
-    local _buyMenu = MENU_COALITION:New(_coalition, "Buy", _mainMenu)
-
-    for item, details in pairs(dcs_cc.objects) do
-        if details.group[_side] ~= nil then
-            env.info("Adding item: " .. item .. " to side: " .. _side, GLOBAL_DEBUG_MODE)
-            local _title = item .. ": " .. details.price
-            MENU_COALITION_COMMAND:New(_coalition, _title, _buyMenu, dcs_cc.buyItem, item, _coalition)
-        end
-    end
-    
-    for _, _groupName in pairs(config.transportGroups[_side]) do
-        dcs_cc.transportGroups[_groupName] = nil
-        SCHEDULER:New(nil,
-            function()
-                local _group = GROUP:FindByName(_groupName)
-                if _group and _group:IsAlive() then
-                    local _unit = _group:GetPlayerUnits()[1]
-                    _unit:HandleEvent(EVENTS.Dead)
-                    function _unit:OnEventDead(EventData)
-                        local _menuCommand = dcs_cc.transportGroups[_groupName]
-                        if _menuCommand then
-                            _menuCommand:Remove()
-                        end
-                        dcs_cc.transportGroups[_groupName] = nil
-                        dcs_cc.unitZones[_groupName] = nil 
-                        -- The zone is not removed, but never checked again, can this cause a performance issue? Should it be left in and reused?
-                        -- TODO TEST
-                    end
-                    if dcs_cc.unitZones[_groupName] == nil then
-                        dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
-                    end
-
-                    MENU_GROUP_COMMAND:New(_group, "Unpack crate", nil, dcs_cc.unpackCrate, _group, _coalition)
-
-                    local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
-
-                    for item, details in pairs(dcs_cc.objects) do
-                        if details.group[_side] ~= nil and details.transportable then
-                            local _title = ""
-                            if details.crates and details.crates > 0 then
-                                _title = item .. ": " .. dcs_cc.getCargoPrice(details) .. " (crates required: " .. details.crates .. ")"
-                            else
-                                _title = item .. ": " .. dcs_cc.getCargoPrice(details)
-                            end
-                            MENU_GROUP_COMMAND:New(_group, _title, _buyAsCargoMenu, dcs_cc.buyAsCargo, item, _coalition, _group)
-                        end
-                    end
-                end
-            end, {}, 10, 10)
-    end
-end
-
-function dcs_cc.maybeCargoZone(ZoneName)
-    for _, _side in pairs({"red", "blue"}) do
-        for _, _z in pairs(dcs_cc.cargoZones[_side]) do
-            if _z:GetName() == ZoneName then
-                return _z
-            end
-        end
-    end
-    return nil
-end
-
--- Start Capture Zones
-
-for _zone, _side in pairs(config.captureZones) do
-    local _triggerZone = (dcs_cc.maybeCargoZone(_zone) or ZONE:New(_zone))
-    local _coalition = dcs_cc.getMooseCoalition(_side)
-
-    local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)
-    -- Start the zone monitoring process in 30 seconds and check every 30 seconds.
-    _captureZone:Start(30, 30)
-    _captureZone:Mark()
-    table.insert(dcs_cc.captureZones, _captureZone)
-end
-
 function dcs_cc.tickResources()
     env.info("RUNNING TICKS", GLOBAL_DEBUG_MODE)
     local _redTickAmount = config.baseResourceGeneration
@@ -466,7 +368,119 @@ function dcs_cc.tickResources()
     MESSAGE:New("Resources gained, Blue: " .. _blueTickAmount .. ", Red: " .. _redTickAmount, 10):ToAll()
 end
 
--- Resource ticking
-SCHEDULER:New(nil, dcs_cc.tickResources, {}, config.resourceTickSeconds, config.resourceTickSeconds):Start()
-env.info("LOADING DCS_CC FINISHED", GLOBAL_DEBUG_MODE)
-MESSAGE:New("Ready to Command & Conquer", 10):ToAll()
+function dcs_cc.maybeCargoZone(ZoneName)
+    for _, _side in pairs({"red", "blue"}) do
+        for _, _z in pairs(dcs_cc.cargoZones[_side]) do
+            if _z:GetName() == ZoneName then
+                return _z
+            end
+        end
+    end
+    return nil
+end
+
+-- Sets everything up, only call this inside DCS
+function dcs_cc.start()
+    
+    if GLOBAL_MOOSE_DEBUG then
+        BASE:TraceOnOff(true)
+        BASE:TraceAll(true)
+        BASE:TraceLevel(2)
+    end
+
+    env.info("LOADING DCS_CC", GLOBAL_DEBUG_MODE)
+
+    dcs_cc.coalitions = {
+        coalition.side.BLUE,
+        coalition.side.RED,
+    }
+
+    dcs_cc.banks.red = config.startingResources
+    dcs_cc.banks.blue = config.startingResources
+
+    dcs_cc.objects = config.objects 
+
+    dcs_cc.spawnZone = {
+        ["blue"] = ZONE:New(config.spawnZone.blue),
+        ["red"] = ZONE:New(config.spawnZone.red),
+    }
+
+    dcs_cc.cargoZones = dcs_cc.initCargoZones() 
+
+    -- setup menu
+    for _, _coalition in pairs(dcs_cc.coalitions) do
+        local _mainMenu = MENU_COALITION:New(_coalition, "DCS Command & Conquer")
+        local _side = dcs_cc.getCoalitionName(_coalition)
+
+        MENU_COALITION_COMMAND:New(_coalition, "Balance", _mainMenu, dcs_cc.coalitionBalance, _coalition)
+
+        local _buyMenu = MENU_COALITION:New(_coalition, "Buy", _mainMenu)
+
+        for item, details in pairs(dcs_cc.objects) do
+            if details.group[_side] ~= nil then
+                env.info("Adding item: " .. item .. " to side: " .. _side, GLOBAL_DEBUG_MODE)
+                local _title = item .. ": " .. details.price
+                MENU_COALITION_COMMAND:New(_coalition, _title, _buyMenu, dcs_cc.buyItem, item, _coalition)
+            end
+        end
+
+        for _, _groupName in pairs(config.transportGroups[_side]) do
+            dcs_cc.transportGroups[_groupName] = nil
+            SCHEDULER:New(nil,
+                function()
+                    local _group = GROUP:FindByName(_groupName)
+                    if _group and _group:IsAlive() then
+                        local _unit = _group:GetPlayerUnits()[1]
+                        _unit:HandleEvent(EVENTS.Dead)
+                        function _unit:OnEventDead(EventData)
+                            local _menuCommand = dcs_cc.transportGroups[_groupName]
+                            if _menuCommand then
+                                _menuCommand:Remove()
+                            end
+                            dcs_cc.transportGroups[_groupName] = nil
+                            dcs_cc.unitZones[_groupName] = nil 
+                            -- The zone is not removed, but never checked again, can this cause a performance issue? Should it be left in and reused?
+                            -- TODO TEST
+                        end
+                        if dcs_cc.unitZones[_groupName] == nil then
+                            dcs_cc.unitZones[_groupName] = ZONE_UNIT:New(_groupName, _unit, 100, {})
+                        end
+
+                        MENU_GROUP_COMMAND:New(_group, "Unpack crate", nil, dcs_cc.unpackCrate, _group, _coalition)
+
+                        local _buyAsCargoMenu = MENU_GROUP:New(_group, "Buy as cargo", _mainMenu)
+
+                        for item, details in pairs(dcs_cc.objects) do
+                            if details.group[_side] ~= nil and details.transportable then
+                                local _title = ""
+                                if details.crates and details.crates > 0 then
+                                    _title = item .. ": " .. dcs_cc.getCargoPrice(details) .. " (crates required: " .. details.crates .. ")"
+                                else
+                                    _title = item .. ": " .. dcs_cc.getCargoPrice(details)
+                                end
+                                MENU_GROUP_COMMAND:New(_group, _title, _buyAsCargoMenu, dcs_cc.buyAsCargo, item, _coalition, _group)
+                            end
+                        end
+                    end
+                end, {}, 10, 10)
+        end
+    end
+
+    -- Start Capture Zones
+    for _zone, _side in pairs(config.captureZones) do
+        local _triggerZone = (dcs_cc.maybeCargoZone(_zone) or ZONE:New(_zone))
+        local _coalition = dcs_cc.getMooseCoalition(_side)
+
+        local _captureZone = ZONE_CAPTURE_COALITION:New(_triggerZone, _coalition)
+        -- Start the zone monitoring process in 30 seconds and check every 30 seconds.
+        _captureZone:Start(30, 30)
+        _captureZone:Mark()
+        table.insert(dcs_cc.captureZones, _captureZone)
+    end
+
+    -- Resource ticking
+    SCHEDULER:New(nil, dcs_cc.tickResources, {}, config.resourceTickSeconds, config.resourceTickSeconds):Start()
+    env.info("LOADING DCS_CC FINISHED", GLOBAL_DEBUG_MODE)
+    MESSAGE:New("Ready to Command & Conquer", 10):ToAll()
+end
+return dcs_cc
