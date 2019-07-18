@@ -7,8 +7,8 @@ config = {}
 
 config.startingResources = 10000
 
-config.baseResourceGeneration = 200
-config.zoneResourceGeneration = 100
+config.baseResourceGeneration = 100
+config.zoneResourceGeneration = 300
 config.resourceTickSeconds = 60
 
 -- The name of each sides warehouse
@@ -51,6 +51,7 @@ config.captureZones = {
     ["Zone3"] = "red",
     ["Zone4"] = "blue",
     ["Zone5"] = "blue",
+    ["Zone6"] = "blue"
 }
 
 -- Name of static objects representing cargo crates
@@ -62,7 +63,7 @@ config.crateTemplate = {
 -- Configuration of buyable groups
 config.objects = {
     ["Tank Group"] = {
-        ["price"] = 1000,
+        ["price"] = 3000,
         ["transportable"] = true,
         ["crates"] = 2,
         -- A group name referencing a late activated group placed in the mission
@@ -71,7 +72,25 @@ config.objects = {
             ["red"] = "RedTanksTemplate"
         }
     },
-    ["Truck Group"] = {
+    ["APC Group"] = {
+        price = 750,
+        transportable = true,
+        crates = 1,
+        group = {
+            blue = "BlueAPC",
+            red = "RedAPC"
+        }
+    },
+    ["IFV Group"] = {
+        price = 2000,
+        transportable = true,
+        crates = 2,
+        group = {
+            blue = "BlueIFV",
+            red = "RedIFV"
+        }
+    },
+    ["Support Group"] = {
         ["price"] = 50,
         ["transportable"] = true,
         ["crates"] = 1,
@@ -88,29 +107,47 @@ config.objects = {
             ["red"] = "RedSquadTemplate"
         }
     },
-    ["Roland"] = {
-        ["price"] = 2000,
-        ["transportable"] = true,
-        ["crates"] = 2,
-        ["group"] = {
-            ["blue"] = "BlueRoland",
+    ["Hawk"] = {
+        price = 6000,
+        transportable = true,
+        crates = 3,
+        group = {
+            blue = "BlueHawk"
         }
     },
     ["SA6"] = {
-        ["price"] = 1500,
+        ["price"] = 6000,
         ["transportable"] = true,
-        ["crates"] = 2,
+        ["crates"] = 3,
         ["group"] = {
             ["red"] = "RedSA6",
         }
     },
-    ["Stinger team"] = {
-        ["price"] = 300,
-        ["transportable"] = true,
-        ["crates"] = 1,
-        ["group"] = {
-            ["blue"] = "BlueStinger",
-            ["red"] = "RedStinger"
+    ["Short range SAM"] = {
+        price = 3000,
+        transportable = true,
+        crates = 1,
+        group = {
+            red = "RedShortSAM",
+            blue = "BlueShortSAM"
         }
     },
+    ["Mobile AAA"] = {
+        price = 1500,
+        transportable = true,
+        crates = 1,
+        group = {
+            red = "RedAAA",
+            blue = "BlueAAA"
+        }
+    }
+--    ["Stinger team"] = {
+--        ["price"] = 3000,
+--        ["transportable"] = true,
+--        ["crates"] = 1,
+--        ["group"] = {
+--            ["blue"] = "BlueStinger",
+--            ["red"] = "RedStinger"
+--        }
+--    },
 }
