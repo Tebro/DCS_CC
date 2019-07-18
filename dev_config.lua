@@ -140,7 +140,16 @@ config.objects = {
             red = "RedAAA",
             blue = "BlueAAA"
         }
-    }
+    },
+    ["JTAC"] = {
+        price = 1000,
+        transportable = true,
+        crates = 1,
+        group = {
+            blue = "BlueJTAC",
+            red = "RedJTAC"
+        }
+    },
 --    ["Stinger team"] = {
 --        ["price"] = 3000,
 --        ["transportable"] = true,
