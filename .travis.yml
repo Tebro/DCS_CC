@@ -1,0 +1,10 @@
+language: c
+sudo: true
+
+before_install:
+  - sudo apt update
+  - sudo apt install luarocks
+  - sudo luarocks install busted
+
+script:
+  - busted test.lua
